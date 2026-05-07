@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#faf9f6">
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiUmVjaXBlIEJveCIsInNob3J0X25hbWUiOiJSZWNpcGVzIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmYWY5ZjYiLCJ0aGVtZV9jb2xvciI6IiNmYWY5ZjYifQ==">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -23,7 +24,7 @@ h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; font-family: 'IB
 nav { display: flex; gap: 0; margin-top: 12px; }
 .nav-btn { background: none; border: none; padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; }
 .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-main { padding: 16px; }
+main { padding: 16px; padding-bottom: 40px; }
 .search { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); outline: none; font-family: inherit; margin-bottom: 10px; }
 .tag-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .tag { padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--tag-bg); font-size: 12px; cursor: pointer; font-family: inherit; color: var(--text); font-weight: 500; }
@@ -39,6 +40,8 @@ main { padding: 16px; }
 .back-btn { background: none; border: none; color: var(--accent); font-size: 13px; cursor: pointer; padding: 0; margin-bottom: 12px; font-family: inherit; font-weight: 500; }
 .detail-name { font-size: 20px; font-weight: 700; margin: 0 0 4px; font-family: 'IBM Plex Serif', Georgia, serif; }
 .detail-desc { font-size: 14px; color: var(--muted); margin: 0 0 10px; }
+.detail-url { display: inline-block; font-size: 13px; color: var(--accent); text-decoration: none; margin-bottom: 10px; word-break: break-all; }
+.detail-url:hover { text-decoration: underline; }
 .section { margin-top: 18px; }
 .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 0 0 6px; }
 .pre-wrap { white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
@@ -68,20 +71,34 @@ textarea.input { resize: vertical; }
 .settings-btn { padding: 9px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 500; flex: 1; min-width: 120px; text-align: center; }
 .settings-btn:active { background: var(--tag-bg); }
 .file-input { display: none; }
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 90%; text-align: center; }
 .toast.show { opacity: 1; }
+.scan-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.scan-box { background: var(--surface); border-radius: 14px; padding: 20px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.scan-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; font-family: 'IBM Plex Serif', Georgia, serif; }
+.scan-preview { width: 100%; max-height: 240px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; background: #f0f0f0; }
+.scan-progress { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+.scan-result { width: 100%; min-height: 120px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); font-family: inherit; resize: vertical; margin-bottom: 12px; }
+.scan-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.scan-btn { padding: 9px 18px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600; }
+.scan-btn.primary { background: var(--accent); color: #fff; }
+.scan-btn.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.photo-btn { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 8px; border: 1px dashed var(--border); background: var(--surface); font-size: 13px; cursor: pointer; font-family: inherit; color: var(--muted); font-weight: 500; margin-top: 8px; width: 100%; justify-content: center; }
+.photo-btn:active { background: var(--tag-bg); }
 </style>
 </head>
 <body>
 
 <div id="app"></div>
+<div id="scan-overlay"></div>
 <div id="toast" class="toast"></div>
 
 <script>
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const DEFAULT_TAGS = ["slow cooker","kid love","protein","quick","veggie","freezer friendly","batch cook"];
 
-// State
 let state = {
   recipes: [],
   mealPlan: {},
@@ -91,12 +108,16 @@ let state = {
   selectedRecipe: null,
   filterTags: [],
   searchText: "",
-  form: { name: "", description: "", ingredients: "", steps: "", tags: [], newTag: "" }
+  form: { name: "", description: "", url: "", ingredients: "", steps: "", tags: [], newTag: "" },
+  scanning: false,
+  scanProgress: 0,
+  scanStatus: "",
+  scanResult: "",
+  scanImage: null
 };
 
 function allTags() { return [...new Set([...DEFAULT_TAGS, ...state.customTags])]; }
 
-// Storage
 function loadData() {
   try {
     const d = JSON.parse(localStorage.getItem("recipebox") || "{}");
@@ -112,15 +133,13 @@ function saveData() {
   }));
 }
 
-// Toast
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2000);
+  setTimeout(() => t.classList.remove("show"), 2500);
 }
 
-// Export
 function exportData() {
   const data = JSON.stringify({ recipes: state.recipes, mealPlan: state.mealPlan, customTags: state.customTags }, null, 2);
   const blob = new Blob([data], { type: "application/json" });
@@ -133,38 +152,117 @@ function exportData() {
   showToast("Backup downloaded");
 }
 
-// Import
 function importData(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
       const d = JSON.parse(e.target.result);
       if (!d.recipes || !Array.isArray(d.recipes)) throw new Error("Invalid");
-      const existingIds = new Set(state.recipes.map(r => r.id));
-      let added = 0;
       d.recipes.forEach(r => {
-        if (!existingIds.has(r.id)) { state.recipes.push(r); added++; }
-        else {
-          const idx = state.recipes.findIndex(x => x.id === r.id);
-          state.recipes[idx] = r;
-        }
+        const idx = state.recipes.findIndex(x => x.id === r.id);
+        if (idx > -1) state.recipes[idx] = r;
+        else state.recipes.push(r);
       });
       if (d.mealPlan) Object.assign(state.mealPlan, d.mealPlan);
-      if (d.customTags) {
-        const s = new Set([...state.customTags, ...d.customTags]);
-        state.customTags = [...s];
-      }
+      if (d.customTags) state.customTags = [...new Set([...state.customTags, ...d.customTags])];
       saveData();
       showToast("Imported " + d.recipes.length + " recipes");
       render();
-    } catch(err) {
-      showToast("Invalid backup file");
-    }
+    } catch(err) { showToast("Invalid backup file"); }
   };
   reader.readAsText(file);
 }
 
-// Render
+// --- OCR ---
+function startScan() {
+  document.getElementById("scanFileInput").click();
+}
+
+function handleScanFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    state.scanImage = e.target.result;
+    state.scanning = true;
+    state.scanProgress = 0;
+    state.scanStatus = "Loading OCR engine...";
+    state.scanResult = "";
+    renderScanOverlay();
+    runOCR(e.target.result);
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
+}
+
+async function runOCR(imageData) {
+  try {
+    const result = await Tesseract.recognize(imageData, 'eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          state.scanProgress = Math.round(m.progress * 100);
+          state.scanStatus = "Reading text... " + state.scanProgress + "%";
+          renderScanOverlay();
+        }
+      }
+    });
+    state.scanResult = result.data.text.trim();
+    state.scanStatus = "Done — edit below, then choose where to add it.";
+    state.scanProgress = 100;
+    renderScanOverlay();
+  } catch(err) {
+    state.scanStatus = "OCR failed — try a clearer photo with good lighting.";
+    state.scanProgress = 0;
+    renderScanOverlay();
+  }
+}
+
+function closeScan() {
+  state.scanning = false;
+  state.scanImage = null;
+  state.scanResult = "";
+  renderScanOverlay();
+}
+
+function useScanResult(target) {
+  const text = document.getElementById("scanResultText");
+  const val = text ? text.value : state.scanResult;
+  if (target === "ingredients") {
+    state.form.ingredients = state.form.ingredients ? state.form.ingredients + "\n" + val : val;
+  } else {
+    state.form.steps = state.form.steps ? state.form.steps + "\n" + val : val;
+  }
+  closeScan();
+  render();
+  showToast("Added to " + target);
+}
+
+function renderScanOverlay() {
+  const el = document.getElementById("scan-overlay");
+  if (!state.scanning) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="scan-overlay" onclick="if(event.target===this)closeScan()">
+    <div class="scan-box">
+      <div class="scan-title">Scan Recipe</div>
+      ${state.scanImage ? `<img class="scan-preview" src="${state.scanImage}">` : ""}
+      <div class="scan-progress">${esc(state.scanStatus)}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${state.scanProgress}%"></div></div>
+      ${state.scanResult ? `
+        <textarea id="scanResultText" class="scan-result">${esc(state.scanResult)}</textarea>
+        <div class="scan-actions">
+          <button class="scan-btn primary" onclick="useScanResult('ingredients')">→ Ingredients</button>
+          <button class="scan-btn primary" onclick="useScanResult('steps')">→ Steps</button>
+          <button class="scan-btn secondary" onclick="closeScan()">Cancel</button>
+        </div>
+      ` : `
+        <div class="scan-actions">
+          <button class="scan-btn secondary" onclick="closeScan()">Cancel</button>
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+
+// --- Render ---
 function render() {
   const app = document.getElementById("app");
   let html = `<header>
@@ -190,7 +288,7 @@ function render() {
 function go(v) {
   if (v === "add" && state.editingId) {
     state.editingId = null;
-    state.form = { name:"", description:"", ingredients:"", steps:"", tags:[], newTag:"" };
+    state.form = { name:"", description:"", url:"", ingredients:"", steps:"", tags:[], newTag:"" };
   }
   state.view = v;
   render();
@@ -205,7 +303,6 @@ function renderRecipes() {
   });
 
   let h = `<input class="search" placeholder="Search recipes or tags..." value="${esc(state.searchText)}" oninput="state.searchText=this.value;render()">`;
-
   if (tags.length) {
     h += `<div class="tag-bar">`;
     tags.forEach(t => {
@@ -214,14 +311,13 @@ function renderRecipes() {
     if (state.filterTags.length) h += `<button class="clear-btn" onclick="state.filterTags=[];render()">clear</button>`;
     h += `</div>`;
   }
-
   if (!filtered.length) {
     h += `<div class="empty">${state.recipes.length ? "No recipes match your filters." : "No recipes yet — tap + Add to get started."}</div>`;
   } else {
     h += `<div class="list">`;
     filtered.forEach(r => {
       h += `<button class="card" onclick="viewRecipe('${r.id}')">
-        <div class="card-name">${esc(r.name)}</div>
+        <div class="card-name">${esc(r.name)}${r.url ? ' 🔗' : ''}</div>
         ${r.description ? `<div class="card-desc">${esc(r.description)}</div>` : ""}
         ${r.tags.length ? `<div class="card-tags">${r.tags.map(t=>`<span class="card-tag">${esc(t)}</span>`).join("")}</div>` : ""}
       </button>`;
@@ -237,6 +333,7 @@ function renderDetail() {
   let h = `<button class="back-btn" onclick="go('recipes')">← Back</button>
     <h2 class="detail-name">${esc(r.name)}</h2>
     ${r.description ? `<p class="detail-desc">${esc(r.description)}</p>` : ""}
+    ${r.url ? `<a class="detail-url" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 ${esc(r.url.length > 50 ? r.url.slice(0,50) + '...' : r.url)}</a>` : ""}
     ${r.tags.length ? `<div class="card-tags">${r.tags.map(t=>`<span class="card-tag">${esc(t)}</span>`).join("")}</div>` : ""}`;
   if (r.ingredients) h += `<div class="section"><h3 class="section-title">Ingredients</h3><div class="pre-wrap">${esc(r.ingredients)}</div></div>`;
   if (r.steps) h += `<div class="section"><h3 class="section-title">Steps</h3><div class="pre-wrap">${esc(r.steps)}</div></div>`;
@@ -251,157 +348,18 @@ function renderForm() {
   const f = state.form;
   const tags = allTags();
   let h = `<h2 class="form-title">${state.editingId ? "Edit Recipe" : "New Recipe"}</h2>
+    <input type="file" id="scanFileInput" accept="image/*" capture="environment" style="display:none" onchange="handleScanFile(this)">
+
     <label class="field">Name *</label>
     <input class="input" value="${esc(f.name)}" oninput="state.form.name=this.value" placeholder="e.g. Pulled Pork Tacos">
+
     <label class="field">Description</label>
     <input class="input" value="${esc(f.description)}" oninput="state.form.description=this.value" placeholder="Short note — feeds 6, 20 min prep, etc.">
+
+    <label class="field">Source URL</label>
+    <input class="input" type="url" value="${esc(f.url)}" oninput="state.form.url=this.value" placeholder="https://example.com/recipe">
+
     <label class="field">Tags</label>
     <div class="tag-bar">`;
   tags.forEach(t => {
-    h += `<button class="tag ${f.tags.includes(t)?'on':''}" onclick="toggleFormTag('${esc(t)}')">${esc(t)}</button>`;
-  });
-  h += `</div>
-    <div class="add-tag-row">
-      <input class="input" value="${esc(f.newTag)}" oninput="state.form.newTag=this.value" placeholder="New tag..." onkeydown="if(event.key==='Enter')addCustomTag()">
-      <button class="add-tag-btn" onclick="addCustomTag()">+</button>
-    </div>
-    <label class="field">Ingredients</label>
-    <textarea class="input" rows="5" oninput="state.form.ingredients=this.value" placeholder="1 lb pork shoulder\n1 can black beans\n8 tortillas">${esc(f.ingredients)}</textarea>
-    <label class="field">Steps</label>
-    <textarea class="input" rows="5" oninput="state.form.steps=this.value" placeholder="1. Season pork and sear\n2. Add to slow cooker with broth\n3. Cook on low 8 hours">${esc(f.steps)}</textarea>
-    <div class="form-actions">
-      <button class="save-btn" onclick="saveRecipe()">${state.editingId ? "Save Changes" : "Add Recipe"}</button>
-      <button class="cancel-btn" onclick="go('recipes')">Cancel</button>
-    </div>`;
-  return h;
-}
-
-function renderPlan() {
-  let h = `<h2 class="form-title">This Week</h2>`;
-  if (!state.recipes.length) {
-    h += `<div class="empty">Add some recipes first, then plan your week here.</div>`;
-    return h;
-  }
-  DAYS.forEach(day => {
-    h += `<div class="plan-day"><div class="plan-day-label">${day}</div>`;
-    ["lunch","dinner"].forEach(slot => {
-      const key = day + "-" + slot;
-      const rid = state.mealPlan[key] || "";
-      const recipe = state.recipes.find(r => r.id === rid);
-      h += `<div class="plan-slot"><span class="slot-label">${slot}</span>
-        <select class="select" onchange="assignMeal('${day}','${slot}',this.value)">
-          <option value="">—</option>`;
-      state.recipes.forEach(r => {
-        h += `<option value="${r.id}" ${r.id===rid?'selected':''}>${esc(r.name)}</option>`;
-      });
-      h += `</select>`;
-      if (recipe && recipe.tags.length) {
-        h += `<div class="plan-tags">${recipe.tags.map(t=>`<span class="plan-tag">${esc(t)}</span>`).join("")}</div>`;
-      }
-      h += `</div>`;
-    });
-    h += `</div>`;
-  });
-  return h;
-}
-
-function renderSettings() {
-  let h = `<h2 class="form-title">Settings</h2>
-    <div class="settings-section" style="border-top:none;margin-top:0;padding-top:0">
-      <div class="settings-title">Backup & Restore</div>
-      <div class="settings-row">
-        <button class="settings-btn" onclick="exportData()">Export Backup</button>
-        <button class="settings-btn" onclick="document.getElementById('importFile').click()">Import Backup</button>
-        <input type="file" id="importFile" class="file-input" accept=".json" onchange="if(this.files[0])importData(this.files[0])">
-      </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">Export saves all your recipes, tags, and meal plan as a JSON file. Import merges a backup into your current data.</p>
-    </div>
-    <div class="settings-section">
-      <div class="settings-title">Data</div>
-      <div class="settings-row">
-        <button class="settings-btn" style="color:#c0392b" onclick="if(confirm('Delete ALL recipes and meal plan data? This cannot be undone.')){state.recipes=[];state.mealPlan={};state.customTags=[];saveData();showToast('All data cleared');render();}">Clear All Data</button>
-      </div>
-    </div>`;
-  return h;
-}
-
-// Actions
-function toggleFilter(t) { const i = state.filterTags.indexOf(t); if (i>-1) state.filterTags.splice(i,1); else state.filterTags.push(t); render(); }
-function toggleFormTag(t) { const i = state.form.tags.indexOf(t); if(i>-1) state.form.tags.splice(i,1); else state.form.tags.push(t); render(); }
-
-function addCustomTag() {
-  const t = state.form.newTag.trim().toLowerCase();
-  if (t && !allTags().includes(t)) {
-    state.customTags.push(t);
-    state.form.tags.push(t);
-    saveData();
-  }
-  state.form.newTag = "";
-  render();
-}
-
-function viewRecipe(id) {
-  state.selectedRecipe = state.recipes.find(r => r.id === id);
-  state.view = "detail";
-  render();
-}
-
-function startEdit(id) {
-  const r = state.recipes.find(x => x.id === id);
-  state.form = { name: r.name, description: r.description, ingredients: r.ingredients, steps: r.steps, tags: [...r.tags], newTag: "" };
-  state.editingId = id;
-  state.view = "add";
-  render();
-}
-
-function saveRecipe() {
-  if (!state.form.name.trim()) return;
-  const recipe = {
-    id: state.editingId || Date.now().toString(),
-    name: state.form.name.trim(),
-    description: state.form.description.trim(),
-    ingredients: state.form.ingredients.trim(),
-    steps: state.form.steps.trim(),
-    tags: state.form.tags
-  };
-  if (state.editingId) {
-    const i = state.recipes.findIndex(r => r.id === state.editingId);
-    state.recipes[i] = recipe;
-  } else {
-    state.recipes.push(recipe);
-  }
-  saveData();
-  state.editingId = null;
-  state.form = { name:"", description:"", ingredients:"", steps:"", tags:[], newTag:"" };
-  state.view = "recipes";
-  render();
-  showToast(state.editingId ? "Recipe updated" : "Recipe added");
-}
-
-function deleteRecipe(id) {
-  if (!confirm("Delete this recipe?")) return;
-  state.recipes = state.recipes.filter(r => r.id !== id);
-  Object.keys(state.mealPlan).forEach(k => { if (state.mealPlan[k] === id) delete state.mealPlan[k]; });
-  saveData();
-  state.selectedRecipe = null;
-  state.view = "recipes";
-  render();
-  showToast("Recipe deleted");
-}
-
-function assignMeal(day, slot, val) {
-  const key = day + "-" + slot;
-  if (val) state.mealPlan[key] = val;
-  else delete state.mealPlan[key];
-  saveData();
-  render();
-}
-
-function esc(s) { if (!s) return ""; return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
-
-// Init
-loadData();
-render();
-</script>
-</body>
-</html>
+    h += `<button class="tag ${f.
